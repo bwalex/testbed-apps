@@ -69,12 +69,14 @@ implementation
 				trace(DBG_USR1, "last packed was not acked!\r\n");
 		}
 		atomic acked = 0;
+		call Leds.redToggle();
 		call PollNodeComm.txData(&pkt, sizeof(pkt));
 		return SUCCESS;
    }
 
    event result_t PollNodeComm.ackReceived(void *data)
    {
+	   	call Leds.greenToggle();
 		atomic acked = 1;
 		return SUCCESS;
    }

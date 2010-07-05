@@ -31,7 +31,7 @@ implementation
 	Node nodes[NUM_NODES];
 	AppPkt pkt;
 	AppPkt *pPkt;
-	uint8_t node_id;
+	norace uint8_t node_id;
 	uint32_t sample_start_ts;
 	uint32_t node_req_ts;
 

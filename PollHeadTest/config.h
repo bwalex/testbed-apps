@@ -20,7 +20,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR
  * MODIFICATIONS.
  *
- * Authors:	Alex Hornung <ahornung@gmail.com>
+ * Author:	Alex Hornung <ahornung@gmail.com>
  */
 
 #ifndef __POLLHEADTEST_CONFIG
@@ -30,21 +30,30 @@
  * Total number of nodes in cluster. The nodes are supposed to have a local
  * address in the range [0..NUM_NODES-1].
  */
-#define NUM_NODES 3
+#define NUM_NODES 7
+
 /*
  * Timeout for each node to answer to the data request in jiffies. One ms is
- * 3250 jiffies on the imote2.
+ * 3250 jiffies on the imote2. (65000 jiffies are 20ms)
  */
-#define TIMEOUT_JIFFIES	700000
+#define TIMEOUT_JIFFIES	65000
+
+/*
+ * Maximum number to retry to poll a node when it didn't answer before.
+ */
+#define POLL_MAX_RETRIES  2
+
 /*
  * Sampling interval in ms. Every SAMPLE_INTERVAL_MS, a new sampling period
- * starts.
+ * starts. (~ 100ms / 10 Hz)
  */
-#define SAMPLE_INTERVAL_MS	1000
+#define SAMPLE_INTERVAL_JIFFIES	325000
+
 /*
  * Sleep interval for the nodes after receiving the ACK for their data.
  */
 #define SLEEP_INTERVAL_MS	0
+
 /*
  * JIFFIES_PER_MS is the number of jiffies (clock interrupts) per ms. On the
  * imote2, the timer clock/osc runs at 3.25 MHz, so 1 ms are 3250 jiffies.

@@ -14,7 +14,7 @@ implementation
 #include "PollMsg.h"
 	AppPkt *pPkt;
 	AppPkt pkt;
-	uint8_t n;
+	uint32_t n;
 	uint8_t acked;
 
 	event result_t TimeoutTimer.fired()
@@ -67,11 +67,9 @@ implementation
 	event result_t PollNodeComm.dataRequested(void *data)
 	{
 		/* Set the payload */
-		pkt.data[0] = 6;
 		atomic {
-			pkt.data[1] = n++;
+			*((uint32_t *)pkt.data) = n;
 		}
-		trace(DBG_USR1, "txData called...\r\n");
 		atomic {
 			if (acked == 0)
 				trace(DBG_USR1, "last packed was not acked!\r\n");
@@ -90,6 +88,7 @@ implementation
 	{
 		call Leds.greenToggle();
 		atomic acked = 1;
+		atomic ++n;
 		return SUCCESS;
 	}
  

@@ -8,6 +8,8 @@ module PollHeadTestM
 		interface Timer as TimeoutTimer;
 		interface Timer as SampleTimer;
 		interface PrecisionTimer as PTimer;
+		interface PrecisionTimer as PSampleTimer;
+		interface PrecisionTimer as PTestTimer;
 		interface StdControl as PTimerControl;
 		//interface PrecisionTimer as TimeoutTimer;
    }
@@ -23,9 +25,10 @@ implementation
 		STATUS_FAIL
 	};
 	typedef struct {
-		uint8_t nodeId;
+		uint16_t nodeId;
 		uint8_t status;
-		uint8_t fail_count;
+		uint32_t fail_count;
+		uint8_t	retries;
 	} Node;
 
 	Node nodes[NUM_NODES];
@@ -34,26 +37,30 @@ implementation
 	norace uint8_t node_id;
 	uint32_t sample_start_ts;
 	uint32_t node_req_ts;
+	uint32_t good_data;
+	uint32_t data_reqs;
+	uint8_t new_sample;
 
 	/*
 	 * Dedicated task to request data from the current node_id.
 	 */
 	task void pollnodes()
 	{
-		trace(DBG_USR1, "Requesting data from node %d\r\n", node_id);
+		//trace(DBG_USR1, "Requesting data from node %d\r\n", node_id);
 		//call TimeoutTimer.start(TIMER_ONE_SHOT, TIMEOUT_MS);
+		atomic ++data_reqs;
 		atomic nodes[node_id].status = STATUS_OK;
 		/* Get current timestamp to find the RTT */
 		atomic node_req_ts = call PTimer.getTime32();
-		/* Set the timeout alarm */
 		call PTimer.setAlarm(node_req_ts + (uint32_t)TIMEOUT_JIFFIES);
+		/* Set the timeout alarm */
+		//call PTimer.setAlarm(node_req_ts + (uint32_t)TIMEOUT_JIFFIES);
 		/* Request the data from node_id */
-		if ((call PollHeadComm.requestData(node_id, &pkt, sizeof(pkt))) == FAIL)
-			trace(DBG_USR1, "PollHeadComm.rquestData() failed\r\n");
-		else {
+		if ((call PollHeadComm.requestData(node_id, &pkt, sizeof(pkt))) == FAIL) {
+		} else {
 			atomic {
 				//node_req_ts = call PTimer.getTime32();
-			//	call PTimer.setAlarm(node_req_ts + (uint32_t)TIMEOUT_JIFFIES);
+				//call PTimer.setAlarm(node_req_ts + (uint32_t)TIMEOUT_JIFFIES);
 			}
 		}
 	}
@@ -68,7 +75,8 @@ implementation
 		/* Node answered after the request was failed / timed out */
 		if (nodes[id].status == STATUS_FAIL)
 		{
-			trace(DBG_USR1, "Node %d took too long to respond\r\n", id);
+			//trace(DBG_USR1, "to,%d\r\n", id);
+			//trace(DBG_USR1, "Node %d took too long to respond\r\n", id);
 			return SUCCESS;
 		}
 
@@ -78,7 +86,9 @@ implementation
 		 * previous one was full to the brim.
 		 */
 		if ((id != node_id) && (!err)) {
-			trace(DBG_USR1, "It's likely that the sample period expired, node %d sent OOB message (node_id=%d)\r\n", id, node_id);
+			pPkt = data;
+			trace(DBG_USR1, "OOB,%d,%d,%d\r\n", id, node_id,  *((uint32_t *)pPkt->data));
+			//trace(DBG_USR1, "It's likely that the sample period expired, node %d sent OOB message (node_id=%d)\r\n", id, node_id);
 			return SUCCESS;
 		}
 
@@ -91,7 +101,7 @@ implementation
 		 * the count of failures of the given note.
 		 */
 		if (err) {
-			trace(DBG_USR1, "error while requesting data... id=%d, node_id=%d\r\n", id, node_id);
+			//trace(DBG_USR1, "error while requesting data... id=%d, node_id=%d\r\n", id, node_id);
 			nodes[node_id].fail_count++;
 		} else {
 			/*
@@ -101,8 +111,15 @@ implementation
 			atomic rtt_ms = (node_ready_ts - node_req_ts - 0.0)/JIFFIES_PER_MS_F;
 			atomic std_ms = (node_ready_ts - sample_start_ts - 0.0)/JIFFIES_PER_MS_F;
 			pPkt = data;
-			trace(DBG_USR1, "received data (from node %d) = %d,%d - RTT: %f ms (jifies: %d), S2RT: %f ms\r\n", id, pPkt->data[0], pPkt->data[1], rtt_ms, node_ready_ts - node_req_ts, std_ms);
+			/*
+			 * Format:
+			 * r,<node_id>,<seq_id>,<RTT>,<S2DT>,<retry_count>,<fail_count>
+			 */
+			atomic ++good_data;
+			trace(DBG_USR1, "r,%d,%d,%f,%f,%d,%d\r\n", id, *((uint32_t *)pPkt->data), rtt_ms, std_ms, nodes[id].retries, nodes[id].fail_count);
+			//trace(DBG_USR1, "received data (from node %d) = %d,%d - RTT: %f ms (jiffies: %d), S2RT: %f ms\r\n", id, pPkt->data[0], pPkt->data[1], rtt_ms, node_ready_ts - node_req_ts, std_ms);
 			call Leds.greenToggle();
+			nodes[id].retries = 0;
 		}
 		/*
 		 * If this is the last node, we just stop here and reset the
@@ -112,6 +129,7 @@ implementation
 		 * post the task to request data from it.
 		 */
 		atomic {
+			nodes[node_id].retries = 0;
 			if (node_id == (NUM_NODES-1)) {
 				node_id = 0;
 			} else { 
@@ -128,6 +146,20 @@ implementation
 	 */
 	async event result_t PTimer.alarmFired(uint32_t val)
 	{
+		int ret = 0;
+		atomic {
+			if (new_sample) {
+				new_sample = 0;
+				sample_start_ts = call PTimer.getTime32();
+				post pollnodes();
+				ret = 1;
+			}
+		}
+		if (ret) {
+			return SUCCESS;
+			/* NOTREACHED */
+		}
+	
 		signal TimeoutTimer.fired();
 		return SUCCESS;
 	}
@@ -140,23 +172,28 @@ implementation
 	{
 		uint32_t cur_ts;
 
-	   	trace(DBG_USR1, "TimeoutTimer fired!!!!!!!!!!!!!!!!!\r\n");
 		atomic {
 			cur_ts = call PTimer.getTime32();
 		}
-		trace(DBG_USR1, "jiffie-diff at timeouttimer firing: %d\r\n", cur_ts - node_req_ts);
+		trace(DBG_USR1, "t,%d\r\n", node_id);
 
 		atomic {
 			/* Cancel the current request. */
 			call PollHeadComm.cancelRequest();
 			nodes[node_id].status = STATUS_FAIL;
 			nodes[node_id].fail_count++;
-			if (node_id == (NUM_NODES-1)) {
-				node_id = 0;
-			} else {
-				node_id++;
-				//trace(DBG_USR1, "special marker (2) for pollnodes(), node_id = %d\r\n", node_id);
+			if (nodes[node_id].retries < POLL_MAX_RETRIES) {
+				atomic	++nodes[node_id].retries;
 				post pollnodes();
+			} else {
+					nodes[node_id].retries = 0;
+				if (node_id == (NUM_NODES-1)) {
+					node_id = 0;
+				} else {
+					node_id++;
+					//trace(DBG_USR1, "special marker (2) for pollnodes(), node_id = %d\r\n", node_id);
+					post pollnodes();
+				}
 			}
 		}
 		return SUCCESS;
@@ -168,17 +205,55 @@ implementation
 	 */
    	event result_t SampleTimer.fired()
 	{
-		trace(DBG_USR1, "SampleTimer fired!!!!!!!!!!!!!!!!!!!\r\n");
-		call TimeoutTimer.stop();
+#if 0
+		//trace(DBG_USR1, "SampleTimer fired!!!!!!!!!!!!!!!!!!!\r\n");
+		//call TimeoutTimer.stop();
+		call PTimer.clearAlarm();
 		call Leds.redToggle();
 		atomic {
 			node_id = 0;
 		}
 		//trace(DBG_USR1, "special marker (3) for pollnodes(), node_id = %d\r\n", node_id);
-		call PollHeadComm.sendSampleStart();
-		//signal PollHeadComm.sendSampleStartDone();
+		//call PollHeadComm.sendSampleStart();
+		signal PollHeadComm.sendSampleStartDone();
 		//atomic sample_start_ts = call PTimer.getTime32();
 		//post pollnodes();
+		return SUCCESS;
+#endif
+		return SUCCESS;
+	}
+
+	async event result_t PTestTimer.alarmFired(uint32_t val)
+	{
+		atomic {
+			call PollHeadComm.cancelRequest();
+			call PSampleTimer.clearAlarm();
+			call PTimer.clearAlarm();
+		}
+		trace(DBG_USR1, "F,%d,%d\r\n", good_data, data_reqs);
+		return SUCCESS;
+	}
+
+	task void setSampleTimer()
+	{
+		uint32_t local_ts;
+
+		call PollHeadComm.cancelRequest();
+		call PTimer.clearAlarm();
+		call Leds.redToggle();
+
+		local_ts = call PTimer.getTime32();
+		call PSampleTimer.setAlarm(local_ts + SAMPLE_INTERVAL_JIFFIES);
+		atomic node_id = 0;
+
+		signal PollHeadComm.sendSampleStartDone();
+		//call PollHeadComm.sendSampleStart();
+		//trace(DBG_USR1, "cnt,%d\r\n", good_data);
+	}
+
+	async event result_t PSampleTimer.alarmFired(uint32_t val)
+	{
+		post setSampleTimer();
 		return SUCCESS;
 	}
 
@@ -189,7 +264,11 @@ implementation
    	event result_t PollHeadComm.sendSampleStartDone()
    	{
 		atomic sample_start_ts = call PTimer.getTime32();
-		post pollnodes();
+		atomic node_id = 0;
+		nodes[node_id].retries = 0;
+		atomic new_sample = 1;
+		call PTimer.setAlarm(sample_start_ts + 20000); /* approx 3 ms */
+		//post pollnodes();
 		return SUCCESS;
 	}
 
@@ -220,6 +299,7 @@ implementation
 	event result_t MACControl.startDone()
 	{
 		uint8_t i;
+		uint32_t local_ts;
 		atomic {
 		 	for (i = 0; i < NUM_NODES; i++) {
 			   	nodes[i].status = STATUS_OK;
@@ -228,8 +308,12 @@ implementation
 		}
 		/* XXX: do actual work starting here */
 		atomic node_id = 0;
-		call SampleTimer.start(TIMER_REPEAT, SAMPLE_INTERVAL_MS);
+		//call SampleTimer.start(TIMER_REPEAT, SAMPLE_INTERVAL_MS);
 		call PollHeadComm.setSleepInterval(SLEEP_INTERVAL_MS * JIFFIES_PER_MS);
+		post setSampleTimer();
+		local_ts = call PTimer.getTime32();
+		/* 30 seconds or 30000 ms */
+		call PTestTimer.setAlarm(local_ts + JIFFIES_PER_MS * (30000));
 		return SUCCESS;
 	}
 

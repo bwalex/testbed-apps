@@ -10,6 +10,8 @@ implementation
    PollHeadTestM.TimeoutTimer -> TimerC.Timer[unique("Timer")];
    PollHeadTestM.SampleTimer -> TimerC.Timer[unique("Timer")];
    PollHeadTestM.PTimer -> PrecisionTimerC.PrecisionTimer[1];
+   PollHeadTestM.PSampleTimer -> PrecisionTimerC.PrecisionTimer[2];
+   PollHeadTestM.PTestTimer -> PrecisionTimerC.PrecisionTimer[3];
    PollHeadTestM.PTimerControl -> PrecisionTimerC.StdControl;
    PollHeadTestM.Leds -> LedsC;
 }

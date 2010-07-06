@@ -2,7 +2,7 @@ configuration PollHeadTest { }
 
 implementation
 {
-   components Main, PollHead, PollHeadTestM, LedsC, TimerC, PrecisionTimerC;
+   components Main, PollHead, PollHeadTestM, LedsC, TimerC, PrecisionTimerC, RandomLFSR;
    
    Main.StdControl -> PollHeadTestM;
    PollHeadTestM.MACControl -> PollHead;
@@ -14,6 +14,7 @@ implementation
    PollHeadTestM.PTestTimer -> PrecisionTimerC.PrecisionTimer[3];
    PollHeadTestM.PTimerControl -> PrecisionTimerC.StdControl;
    PollHeadTestM.Leds -> LedsC;
+   PollHeadTestM.Random -> RandomLFSR;
 }
 
 

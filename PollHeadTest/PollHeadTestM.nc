@@ -11,6 +11,7 @@ module PollHeadTestM
 		interface PrecisionTimer as PSampleTimer;
 		interface PrecisionTimer as PTestTimer;
 		interface StdControl as PTimerControl;
+		interface Random;
 		//interface PrecisionTimer as TimeoutTimer;
    }
 }
@@ -19,6 +20,8 @@ implementation
 {
 #include "PollMsg.h"
 #include "config.h"
+
+#define FLAG_ACCESSED	0x02
 
 	enum {
 		STATUS_OK,
@@ -29,6 +32,7 @@ implementation
 		uint8_t status;
 		uint32_t fail_count;
 		uint8_t	retries;
+		uint8_t flags;
 	} Node;
 
 	Node nodes[NUM_NODES];
@@ -40,13 +44,15 @@ implementation
 	uint32_t good_data;
 	uint32_t data_reqs;
 	uint8_t new_sample;
+	uint32_t nodes_left;
+
 
 	/*
 	 * Dedicated task to request data from the current node_id.
 	 */
 	task void pollnodes()
 	{
-		//trace(DBG_USR1, "Requesting data from node %d\r\n", node_id);
+		//trace(DBG_USR1, "Requesting data from node %d, %d\r\n", node_id, call Random.rand() % nodes_left);
 		//call TimeoutTimer.start(TIMER_ONE_SHOT, TIMEOUT_MS);
 		atomic ++data_reqs;
 		atomic nodes[node_id].status = STATUS_OK;
@@ -64,6 +70,57 @@ implementation
 			}
 		}
 	}
+
+	inline void poll_next_node()
+	{
+		uint8_t i, j;
+		int8_t rand_no;
+#if POLL_RANDOM_ORDER == 1
+		//trace(DBG_USR1, "Hey ho, poll_next_node, POLL_RANDOM_ORDER!\r\n");
+		atomic {
+			nodes[node_id].retries = 0;
+			nodes[node_id].flags |= FLAG_ACCESSED;
+			--nodes_left;
+			if (nodes_left == 0) {
+				node_id = call Random.rand() % NUM_NODES;
+			} else if (nodes_left == 1) {
+				for (i = 0; i < NUM_NODES; i++) {
+					if (nodes[i].flags & FLAG_ACCESSED)
+						continue;
+					node_id = i;
+					post pollnodes();
+					break;	
+				}
+			} else {
+				i = 0; /* j = 10; */
+				rand_no = call Random.rand() % nodes_left;
+				while ((rand_no >= 0)/* && (j-- > 0)*/) {
+					//trace (DBG_USR1, "while... rand_no=%d, i=%d\r\n", rand_no, i);
+					if (!(nodes[i].flags & FLAG_ACCESSED))
+						--rand_no;
+					if (rand_no >= 0)
+						i++;
+				}
+
+				//trace(DBG_USR1, "post pollnodes(%d)\r\n", i);
+				node_id = i;
+				post pollnodes();
+			}
+		}
+#else
+		//trace(DBG_USR1, "non-random-order polling\r\n");
+		atomic {
+			nodes[node_id].retries = 0;
+			if (node_id == (NUM_NODES-1)) {
+				node_id = 0;
+			} else { 
+				node_id++;
+				post pollnodes();
+			}
+		}
+#endif	
+	}
+
 
 	event result_t PollHeadComm.requestDataDone(uint8_t id, void *data, uint8_t err)
 	{
@@ -87,7 +144,7 @@ implementation
 		 */
 		if ((id != node_id) && (!err)) {
 			pPkt = data;
-			trace(DBG_USR1, "OOB,%d,%d,%d\r\n", id, node_id,  *((uint32_t *)pPkt->data));
+			trace(DBG_USR1, "2,%d,%d,%d\r\n", id, node_id,  *((uint32_t *)pPkt->data));
 			//trace(DBG_USR1, "It's likely that the sample period expired, node %d sent OOB message (node_id=%d)\r\n", id, node_id);
 			return SUCCESS;
 		}
@@ -113,10 +170,10 @@ implementation
 			pPkt = data;
 			/*
 			 * Format:
-			 * r,<node_id>,<seq_id>,<RTT>,<S2DT>,<retry_count>,<fail_count>
+			 * 3,<node_id>,<seq_id>,<RTT>,<S2DT>,<retry_count>,<fail_count>
 			 */
 			atomic ++good_data;
-			trace(DBG_USR1, "r,%d,%d,%f,%f,%d,%d\r\n", id, *((uint32_t *)pPkt->data), rtt_ms, std_ms, nodes[id].retries, nodes[id].fail_count);
+			trace(DBG_USR1, "3,%d,%d,%f,%f,%d,%d\r\n", id, *((uint32_t *)pPkt->data), rtt_ms, std_ms, nodes[id].retries, nodes[id].fail_count);
 			//trace(DBG_USR1, "received data (from node %d) = %d,%d - RTT: %f ms (jiffies: %d), S2RT: %f ms\r\n", id, pPkt->data[0], pPkt->data[1], rtt_ms, node_ready_ts - node_req_ts, std_ms);
 			call Leds.greenToggle();
 			nodes[id].retries = 0;
@@ -128,6 +185,9 @@ implementation
 		 * If this is not the last node, we move on to the next node and
 		 * post the task to request data from it.
 		 */
+		//trace(DBG_USR1, "calling poll_next_node\r\n");
+		poll_next_node();
+#if 0
 		atomic {
 			nodes[node_id].retries = 0;
 			if (node_id == (NUM_NODES-1)) {
@@ -138,6 +198,7 @@ implementation
 				post pollnodes();
 			}
 		}
+#endif
 		return SUCCESS;
 	}
 
@@ -175,7 +236,7 @@ implementation
 		atomic {
 			cur_ts = call PTimer.getTime32();
 		}
-		trace(DBG_USR1, "t,%d\r\n", node_id);
+		trace(DBG_USR1, "4,%d\r\n", node_id);
 
 		atomic {
 			/* Cancel the current request. */
@@ -186,7 +247,9 @@ implementation
 				atomic	++nodes[node_id].retries;
 				post pollnodes();
 			} else {
-					nodes[node_id].retries = 0;
+				poll_next_node();
+#if 0
+				nodes[node_id].retries = 0;
 				if (node_id == (NUM_NODES-1)) {
 					node_id = 0;
 				} else {
@@ -194,6 +257,7 @@ implementation
 					//trace(DBG_USR1, "special marker (2) for pollnodes(), node_id = %d\r\n", node_id);
 					post pollnodes();
 				}
+#endif
 			}
 		}
 		return SUCCESS;
@@ -237,6 +301,7 @@ implementation
 	task void setSampleTimer()
 	{
 		uint32_t local_ts;
+		uint8_t i;
 
 		call PollHeadComm.cancelRequest();
 		call PTimer.clearAlarm();
@@ -244,8 +309,16 @@ implementation
 
 		local_ts = call PTimer.getTime32();
 		call PSampleTimer.setAlarm(local_ts + SAMPLE_INTERVAL_JIFFIES);
-		atomic node_id = 0;
 
+#if POLL_RANDOM_ORDER == 1
+		//trace(DBG_USR1, "setSampleTimer: random order\r\n");
+		atomic {
+			for (i = 0; i < NUM_NODES; i++) {
+				nodes[i].flags &= (~FLAG_ACCESSED);
+			}
+			nodes_left = NUM_NODES;
+		}
+#endif
 		signal PollHeadComm.sendSampleStartDone();
 		//call PollHeadComm.sendSampleStart();
 		//trace(DBG_USR1, "cnt,%d\r\n", good_data);
@@ -264,7 +337,6 @@ implementation
    	event result_t PollHeadComm.sendSampleStartDone()
    	{
 		atomic sample_start_ts = call PTimer.getTime32();
-		atomic node_id = 0;
 		nodes[node_id].retries = 0;
 		atomic new_sample = 1;
 		call PTimer.setAlarm(sample_start_ts + 20000); /* approx 3 ms */
@@ -277,8 +349,8 @@ implementation
 	 */
 	command result_t StdControl.init()
 	{
-		node_id = 0; 
 		call Leds.init();
+		call Random.init();
 		call PTimerControl.init();
 		return SUCCESS;
 	}
@@ -304,6 +376,7 @@ implementation
 		 	for (i = 0; i < NUM_NODES; i++) {
 			   	nodes[i].status = STATUS_OK;
 				nodes[i].fail_count = 0;
+				nodes[i].flags = 0;
 			}
 		}
 		/* XXX: do actual work starting here */
@@ -324,7 +397,7 @@ implementation
 
 	command result_t StdControl.start()
 	{
-		trace(DBG_USR1, "SMACTest StdControl.start() called\r\n");
+		trace(DBG_USR1, "1,%d\r\n", NUM_NODES);
 		call MACControl.init();
 		return SUCCESS;
 	}

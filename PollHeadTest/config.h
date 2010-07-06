@@ -33,6 +33,12 @@
 #define NUM_NODES 7
 
 /*
+ * Poll nodes in random order? If set to 0, nodes will be polled in strictly
+ * sequential order.
+ */
+#define POLL_RANDOM_ORDER 1
+
+/*
  * Timeout for each node to answer to the data request in jiffies. One ms is
  * 3250 jiffies on the imote2. (65000 jiffies are 20ms)
  */

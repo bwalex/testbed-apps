@@ -222,12 +222,12 @@ implementation
 	event result_t PhyControl.startDone()
 	{
 		uint32_t local_ts;
-
+#if 1
 		call BackoffControl.enableBackoff();
 		call BackoffControl.setMode(1);
-		call BackoffControl.setRandomLimits(40, 160);
-		call BackoffControl.setRetries(25);
-
+		call BackoffControl.setRandomLimits(5, 20);
+		call BackoffControl.setRetries(20);
+#endif
 		post setSampleTimer();
 
 		local_ts = call PTimer.getTime32();

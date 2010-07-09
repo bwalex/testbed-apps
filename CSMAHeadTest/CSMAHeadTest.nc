@@ -2,13 +2,13 @@ configuration CSMAHeadTest { }
 
 implementation
 {
-   components Main, PhyRadio, CSMAHeadTestM, LedsC, TimerC, PrecisionTimerC, RandomLFSR;
+   components Main, PhyRadio2, CSMAHeadTestM, LedsC, TimerC, PrecisionTimerC, RandomLFSR;
    
    Main.StdControl -> CSMAHeadTestM;
-   CSMAHeadTestM.PhyControl -> PhyRadio.SplitControl;
-   CSMAHeadTestM.PhyState -> PhyRadio;
-   CSMAHeadTestM.PhyComm -> PhyRadio;
-   CSMAHeadTestM.BackoffControl -> PhyRadio;
+   CSMAHeadTestM.PhyControl -> PhyRadio2.SplitControl;
+   CSMAHeadTestM.PhyState -> PhyRadio2;
+   CSMAHeadTestM.PhyComm -> PhyRadio2;
+   CSMAHeadTestM.BackoffControl -> PhyRadio2;
    CSMAHeadTestM.TimeoutTimer -> TimerC.Timer[unique("Timer")];
    CSMAHeadTestM.SampleTimer -> TimerC.Timer[unique("Timer")];
    CSMAHeadTestM.PTimer -> PrecisionTimerC.PrecisionTimer[1];

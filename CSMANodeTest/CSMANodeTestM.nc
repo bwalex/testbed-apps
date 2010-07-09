@@ -56,6 +56,7 @@ implementation
 
 		if (err) {
 			trace(DBG_USR1, "txPktDone failed, err=%d\r\n", err);
+			call Leds.redToggle();
 		} else {
 			++n;
 			call Leds.greenToggle();
@@ -187,12 +188,12 @@ implementation
 	event result_t PhyControl.startDone()
 	{
 		uint32_t local_ts;
-
+#if 1
 		call BackoffControl.enableBackoff();
 		call BackoffControl.setMode(1);
-		call BackoffControl.setRandomLimits(80, 200);
-		call BackoffControl.setRetries(100);
-
+		call BackoffControl.setRandomLimits(50, 600);
+		call BackoffControl.setRetries(15);
+#endif
 		return SUCCESS;
 	}
 

@@ -2,13 +2,13 @@ configuration CSMANodeTest { }
 
 implementation
 {
-   components Main, PhyRadio, CSMANodeTestM, LedsC, TimerC, PrecisionTimerC, RandomLFSR;
+   components Main, PhyRadio2, CSMANodeTestM, LedsC, TimerC, PrecisionTimerC, RandomLFSR;
    
    Main.StdControl -> CSMANodeTestM;
-   CSMANodeTestM.PhyControl -> PhyRadio.SplitControl;
-   CSMANodeTestM.PhyState -> PhyRadio;
-   CSMANodeTestM.PhyComm -> PhyRadio;
-   CSMANodeTestM.BackoffControl -> PhyRadio;
+   CSMANodeTestM.PhyControl -> PhyRadio2.SplitControl;
+   CSMANodeTestM.PhyState -> PhyRadio2;
+   CSMANodeTestM.PhyComm -> PhyRadio2;
+   CSMANodeTestM.BackoffControl -> PhyRadio2;
    CSMANodeTestM.TimeoutTimer -> TimerC.Timer[unique("Timer")];
    CSMANodeTestM.SampleTimer -> TimerC.Timer[unique("Timer")];
    CSMANodeTestM.PTimer -> PrecisionTimerC.PrecisionTimer[1];

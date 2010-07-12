@@ -48,6 +48,7 @@ implementation
 	uint8_t test_finished;
 	uint32_t nodes_left;
 	uint32_t bad_data;
+	uint32_t oob_data;
 
 	uint32_t sample_interval;
 
@@ -98,14 +99,15 @@ implementation
 			 * Format:
 			 * 3,<node_id>,<seq_id>,<RTT>,<S2DT>,<retry_count>,<fail_count>
 			 */
-			atomic ++good_data;
 			id = pPkt->hdr.src_id;
 			loc_recv_intv = pPkt->hdr.sample_interval;
 
 			if (loc_recv_intv != loc_sample_interval) {
 				trace(DBG_USR1, "2,%d,%d,%d,%d\r\n", id, *((uint32_t *)pPkt->data), loc_recv_intv, loc_sample_interval);
+				atomic ++oob_data;
 			} else {
 				trace(DBG_USR1, "3,%d,%d,%f\r\n", id, *((uint32_t *)pPkt->data), std_ms);
+				atomic ++good_data;
 				call Leds.greenToggle();
 			}
 		}
@@ -146,7 +148,7 @@ implementation
 			call Leds.yellowOff();
 			test_finished = 1;
 		}
-		trace(DBG_USR1, "5,%d,%d\r\n", good_data, bad_data);
+		trace(DBG_USR1, "5,%d,%d,%d\r\n", good_data, oob_data, bad_data);
 		return SUCCESS;
 	}
 
@@ -225,8 +227,8 @@ implementation
 #if 1
 		call BackoffControl.enableBackoff();
 		call BackoffControl.setMode(1);
-		call BackoffControl.setRandomLimits(5, 20);
-		call BackoffControl.setRetries(20);
+		call BackoffControl.setRandomLimits(3, 6);
+		call BackoffControl.setRetries(10);
 #endif
 		post setSampleTimer();
 

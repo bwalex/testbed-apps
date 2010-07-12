@@ -45,7 +45,7 @@ implementation
 	uint32_t data_reqs;
 	uint8_t new_sample;
 	uint32_t nodes_left;
-
+	uint32_t avg_rtt;
 
 	/*
 	 * Dedicated task to request data from the current node_id.
@@ -71,14 +71,47 @@ implementation
 		}
 	}
 
+	inline uint8_t check_enough_time()
+	{
+		uint32_t jiffies_left;
+		uint8_t enough_time = 1;
+
+		atomic {
+			jiffies_left = SAMPLE_INTERVAL_JIFFIES -
+					(call PTimer.getTime32() - sample_start_ts);
+			if (jiffies_left < avg_rtt) {
+				enough_time = 0;
+				//trace(DBG_USR1, "jiffes_left (%d) < avg_rtt (%d)\r\n", jiffies_left, avg_rtt);
+			}
+		}
+
+		return enough_time;
+	}
+
 	inline void poll_next_node()
 	{
 		uint8_t i, j;
 		int8_t rand_no;
+
+		atomic {
+			nodes[node_id].retries = 0;
+		}
+
+		if (check_enough_time() == 0) {
+			atomic {
+#if POLL_RANDOM_ORDER == 1
+				node_id = call Random.rand() % NUM_NODES;
+#else
+				node_id = 0;
+#endif
+			}
+			return;
+		}
+
 #if POLL_RANDOM_ORDER == 1
 		//trace(DBG_USR1, "Hey ho, poll_next_node, POLL_RANDOM_ORDER!\r\n");
 		atomic {
-			nodes[node_id].retries = 0;
+			//nodes[node_id].retries = 0;
 			nodes[node_id].flags |= FLAG_ACCESSED;
 			--nodes_left;
 			if (nodes_left == 0) {
@@ -110,7 +143,7 @@ implementation
 #else
 		//trace(DBG_USR1, "non-random-order polling\r\n");
 		atomic {
-			nodes[node_id].retries = 0;
+			//nodes[node_id].retries = 0;
 			if (node_id == (NUM_NODES-1)) {
 				node_id = 0;
 			} else { 
@@ -165,6 +198,11 @@ implementation
 			 * If everything went well, calculated the round trip
 			 * time (RTT) and sample to data time (STD, S2RT).
 			 */
+			atomic {
+				/* Moving averager, ((n-1)*avg_{n-1} + x) / n */
+				avg_rtt = ((avg_rtt*good_data) + (node_ready_ts - node_req_ts)) / (good_data + 1);
+			}
+
 			atomic rtt_ms = (node_ready_ts - node_req_ts - 0.0)/JIFFIES_PER_MS_F;
 			atomic std_ms = (node_ready_ts - sample_start_ts - 0.0)/JIFFIES_PER_MS_F;
 			pPkt = data;
@@ -245,7 +283,10 @@ implementation
 			nodes[node_id].fail_count++;
 			if (nodes[node_id].retries < POLL_MAX_RETRIES) {
 				atomic	++nodes[node_id].retries;
-				post pollnodes();
+				if (check_enough_time() == 1)
+					post pollnodes();
+				else
+					atomic nodes[node_id].retries = 0;
 			} else {
 				poll_next_node();
 #if 0

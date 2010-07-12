@@ -39,14 +39,16 @@ implementation
 
 	task void setSampleTimer()
 	{
+		uint32_t local_ts;
 		uint8_t i;
 
 		//call Leds.redToggle();
+		local_ts = call PTimer.getTime32();
 
 		atomic {
 			++sample_interval;
 			sendData();
-			call PSampleTimer.setAlarm(sample_start_ts + sample_jiffies);
+			call PSampleTimer.setAlarm(local_ts + sample_jiffies);
 		}
 	}
 
@@ -55,7 +57,7 @@ implementation
 		uint32_t local_ts, loc_sleep_ts;
 
 		if (err) {
-			trace(DBG_USR1, "txPktDone failed, err=%d\r\n", err);
+			//trace(DBG_USR1, "txPktDone failed, err=%d\r\n", err);
 			call Leds.redToggle();
 		} else {
 			++n;
@@ -191,8 +193,8 @@ implementation
 #if 1
 		call BackoffControl.enableBackoff();
 		call BackoffControl.setMode(1);
-		call BackoffControl.setRandomLimits(50, 600);
-		call BackoffControl.setRetries(15);
+		call BackoffControl.setRandomLimits(20, 250);
+		call BackoffControl.setRetries(30);
 #endif
 		return SUCCESS;
 	}

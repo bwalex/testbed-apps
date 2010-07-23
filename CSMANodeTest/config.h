@@ -20,31 +20,30 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR
  * MODIFICATIONS.
  *
- * Authors:	Alex Hornung <ahornung@gmail.com>
+ * Author:	Alex Hornung <ahornung@gmail.com>
  */
 
-#ifndef __POLLHEADTEST_CONFIG
-#define __POLLHEADTEST_CONFIG
+#ifndef __CSMAHEADTEST_CONFIG
+#define __CSMAHEADTEST_CONFIG
+
+#define NUM_NODES 9
 
 /*
- * Total number of nodes in cluster. The nodes are supposed to have a local
- * address in the range [0..NUM_NODES-1].
+ * Send out a beacon every N sampling intervals
  */
-#define NUM_NODES 3
+#define SAMPLE_INTERVAL_TO_BEACON_RATIO 5
+
 /*
- * Timeout for each node to answer to the data request in jiffies. One ms is
- * 3250 jiffies on the imote2.
+ * Test time in ms (300000ms = 300s = 5min)
  */
-#define TIMEOUT_JIFFIES	700000
+#define TEST_TIME 300000
+
 /*
  * Sampling interval in ms. Every SAMPLE_INTERVAL_MS, a new sampling period
- * starts.
+ * starts. (~ 100ms / 10 Hz)
  */
-#define SAMPLE_INTERVAL_MS	1000
-/*
- * Sleep interval for the nodes after receiving the ACK for their data.
- */
-#define SLEEP_INTERVAL_MS	0
+#define SAMPLE_INTERVAL_JIFFIES	325000
+
 /*
  * JIFFIES_PER_MS is the number of jiffies (clock interrupts) per ms. On the
  * imote2, the timer clock/osc runs at 3.25 MHz, so 1 ms are 3250 jiffies.

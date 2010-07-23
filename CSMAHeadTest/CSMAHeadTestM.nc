@@ -1,7 +1,8 @@
 module CSMAHeadTestM
 {
-   provides interface StdControl;
-   uses {
+	provides interface StdControl;
+	  uses
+	{
 		interface SplitControl as PhyControl;
 		interface PhyState;
 		interface PhyComm;
@@ -15,7 +16,7 @@ module CSMAHeadTestM
 		interface StdControl as PTimerControl;
 		interface Random;
 		//interface PrecisionTimer as TimeoutTimer;
-   }
+	}
 }
 
 implementation
@@ -25,15 +26,17 @@ implementation
 
 #define FLAG_ACCESSED	0x02
 
-	enum {
+	enum
+	{
 		STATUS_OK,
 		STATUS_FAIL
 	};
-	typedef struct {
+	typedef struct
+	{
 		uint16_t nodeId;
 		uint8_t status;
 		uint32_t fail_count;
-		uint8_t	retries;
+		uint8_t retries;
 		uint8_t flags;
 	} Node;
 
@@ -58,13 +61,13 @@ implementation
 		return SUCCESS;
 	}
 
-	event result_t PhyComm.startSymDetected(void* foo)
+	event result_t PhyComm.startSymDetected(void *foo)
 	{
 		//trace(DBG_USR1, "startsymdetect\r\n");
 		return SUCCESS;
 	}
 
-	event void * PhyComm.rxPktDone(void *data, uint8_t err)
+	event void *PhyComm.rxPktDone(void *data, uint8_t err)
 	{
 		uint32_t node_ready_ts;
 		float rtt_ms, std_ms;
@@ -82,7 +85,7 @@ implementation
 		 * the count of failures of the given note.
 		 */
 		if (err)
-			atomic ++bad_data;
+			atomic++ bad_data;
 
 		if (err || test_finished) {
 			//trace(DBG_USR1, "error while requesting data... id=%d, node_id=%d\r\n", id, node_id);
@@ -91,8 +94,10 @@ implementation
 			 * If everything went well, calculated the round trip
 			 * time (RTT) and sample to data time (STD, S2RT).
 			 */
-			atomic std_ms = (node_ready_ts - sample_start_ts - 0.0)/JIFFIES_PER_MS_F;
-			pPkt = (CSMAPkt *)data;
+			atomic std_ms =
+			    (node_ready_ts - sample_start_ts -
+			     0.0) / JIFFIES_PER_MS_F;
+			pPkt = (CSMAPkt *) data;
 			if (pPkt->hdr.type != CSMA_DATA)
 				return data;
 			/*
@@ -103,11 +108,14 @@ implementation
 			loc_recv_intv = pPkt->hdr.sample_interval;
 
 			if (loc_recv_intv != loc_sample_interval) {
-				trace(DBG_USR1, "2,%d,%d,%d,%d\r\n", id, *((uint32_t *)pPkt->data), loc_recv_intv, loc_sample_interval);
-				atomic ++oob_data;
+				trace(DBG_USR1, "2,%d,%d,%d,%d\r\n", id,
+				      *((uint32_t *) pPkt->data),
+				      loc_recv_intv, loc_sample_interval);
+				atomic++ oob_data;
 			} else {
-				trace(DBG_USR1, "3,%d,%d,%f\r\n", id, *((uint32_t *)pPkt->data), std_ms);
-				atomic ++good_data;
+				trace(DBG_USR1, "3,%d,%d,%f\r\n", id,
+				      *((uint32_t *) pPkt->data), std_ms);
+				atomic++ good_data;
 				call Leds.greenToggle();
 			}
 		}
@@ -135,7 +143,7 @@ implementation
 	 * The sample timer fired, so a new sampling period has started.
 	 * Send the sample start packet.
 	 */
-   	event result_t SampleTimer.fired()
+	event result_t SampleTimer.fired()
 	{
 		return SUCCESS;
 	}
@@ -148,7 +156,8 @@ implementation
 			call Leds.yellowOff();
 			test_finished = 1;
 		}
-		trace(DBG_USR1, "5,%d,%d,%d\r\n", good_data, oob_data, bad_data);
+		trace(DBG_USR1, "5,%d,%d,%d\r\n", good_data, oob_data,
+		      bad_data);
 		return SUCCESS;
 	}
 
@@ -179,11 +188,13 @@ implementation
 
 		local_ts = call PTimer.getTime32();
 		atomic {
-			if ((sample_interval % SAMPLE_INTERVAL_TO_BEACON_RATIO) == 0)
+			if ((sample_interval %
+			     SAMPLE_INTERVAL_TO_BEACON_RATIO) == 0)
 				sendBeacon(sample_interval);
 			++sample_interval;
 		}
-		call PSampleTimer.setAlarm(local_ts + SAMPLE_INTERVAL_JIFFIES);
+		call PSampleTimer.setAlarm(local_ts +
+					   SAMPLE_INTERVAL_JIFFIES);
 	}
 
 	async event result_t PSampleTimer.alarmFired(uint32_t val)
@@ -233,7 +244,8 @@ implementation
 		post setSampleTimer();
 
 		local_ts = call PTimer.getTime32();
-		call PTestTimer.setAlarm(local_ts + JIFFIES_PER_MS * (30000));
+		call PTestTimer.setAlarm(local_ts +
+					 JIFFIES_PER_MS * (TEST_TIME));
 		return SUCCESS;
 	}
 
@@ -242,8 +254,7 @@ implementation
 	{
 		call PhyControl.stop();
 	}
-	
 
 
-}  // end of implementation
 
+}				// end of implementation

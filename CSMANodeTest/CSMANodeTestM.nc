@@ -1,7 +1,8 @@
 module CSMANodeTestM
 {
-   provides interface StdControl;
-   uses {
+	provides interface StdControl;
+	  uses
+	{
 		interface SplitControl as PhyControl;
 		interface PhyState;
 		interface PhyComm;
@@ -15,7 +16,7 @@ module CSMANodeTestM
 		interface StdControl as PTimerControl;
 		interface Random;
 		//interface PrecisionTimer as TimeoutTimer;
-   }
+	}
 }
 
 implementation
@@ -63,20 +64,21 @@ implementation
 			++n;
 			call Leds.greenToggle();
 			local_ts = call PTimer.getTime32();
-			atomic loc_sleep_ts = sleep_jiffies - (local_ts - sample_start_ts);
+			atomic loc_sleep_ts =
+			    sleep_jiffies - (local_ts - sample_start_ts);
 			/* XXX: go to sleep now */
 		}
 
 		return SUCCESS;
 	}
 
-	event result_t PhyComm.startSymDetected(void* foo)
+	event result_t PhyComm.startSymDetected(void *foo)
 	{
 		atomic temp_ts = call PTimer.getTime32();
 		return SUCCESS;
 	}
 
-	event void * PhyComm.rxPktDone(void *data, uint8_t err)
+	event void *PhyComm.rxPktDone(void *data, uint8_t err)
 	{
 		uint32_t node_ready_ts;
 		float rtt_ms, std_ms;
@@ -89,7 +91,7 @@ implementation
 
 		if (err)
 			return data;
-		bPkt = (BeaconPkt *)data;
+		bPkt = (BeaconPkt *) data;
 		if (bPkt->hdr.type != CSMA_BEACON)
 			return data;
 		atomic {
@@ -126,7 +128,7 @@ implementation
 	 * The sample timer fired, so a new sampling period has started.
 	 * Send the sample start packet.
 	 */
-   	event result_t SampleTimer.fired()
+	event result_t SampleTimer.fired()
 	{
 		return SUCCESS;
 	}
@@ -146,11 +148,12 @@ implementation
 			appPkt.hdr.dest_id = node_id;
 			appPkt.hdr.type = CSMA_DATA;
 			appPkt.hdr.sample_interval = sample_interval;
-			*((uint32_t *)appPkt.data) = n;
+			*((uint32_t *) appPkt.data) = n;
 			ret = call PhyComm.txPkt(&appPkt, sizeof(appPkt));
 		}
 		if (ret == FAIL)
-			trace(DBG_USR1, "PhyComm.txPkt() failed miserably!\r\n");
+			trace(DBG_USR1,
+			      "PhyComm.txPkt() failed miserably!\r\n");
 	}
 
 	async event result_t PSampleTimer.alarmFired(uint32_t val)
@@ -173,6 +176,7 @@ implementation
 
 	event result_t PhyControl.stopDone()
 	{
+		call Leds.yellowOff();
 		return SUCCESS;
 	}
 
@@ -193,9 +197,10 @@ implementation
 #if 1
 		call BackoffControl.enableBackoff();
 		call BackoffControl.setMode(1);
-		call BackoffControl.setRandomLimits(20, 250);
-		call BackoffControl.setRetries(30);
+		call BackoffControl.setRandomLimits(100, 1000);
+		call BackoffControl.setRetries(20);
 #endif
+		call Leds.yellowOn();
 		return SUCCESS;
 	}
 
@@ -204,8 +209,7 @@ implementation
 	{
 		call PhyControl.stop();
 	}
-	
 
 
-}  // end of implementation
 
+}				// end of implementation

@@ -26,13 +26,12 @@
 #ifndef __CSMAHEADTEST_CONFIG
 #define __CSMAHEADTEST_CONFIG
 
-/*
- * Total number of nodes in cluster. The nodes are supposed to have a local
- * address in the range [0..NUM_NODES-1].
- */
-#define NUM_NODES 7
+#define NUM_NODES 9
 
-#define SAMPLE_INTERVAL_TO_BEACON_RATIO 1
+/*
+ * Send out a beacon every N sampling intervals
+ */
+#define SAMPLE_INTERVAL_TO_BEACON_RATIO 5
 
 /*
  * Test time in ms (300000ms = 300s = 5min)
@@ -40,26 +39,10 @@
 #define TEST_TIME 300000
 
 /*
- * Timeout for each node to answer to the data request in jiffies. One ms is
- * 3250 jiffies on the imote2. (65000 jiffies are 20ms)
- */
-#define TIMEOUT_JIFFIES	65000
-
-/*
- * Maximum number to retry to poll a node when it didn't answer before.
- */
-#define POLL_MAX_RETRIES  2
-
-/*
  * Sampling interval in ms. Every SAMPLE_INTERVAL_MS, a new sampling period
  * starts. (~ 100ms / 10 Hz)
  */
 #define SAMPLE_INTERVAL_JIFFIES	325000
-
-/*
- * Sleep interval for the nodes after receiving the ACK for their data.
- */
-#define SLEEP_INTERVAL_MS	0
 
 /*
  * JIFFIES_PER_MS is the number of jiffies (clock interrupts) per ms. On the

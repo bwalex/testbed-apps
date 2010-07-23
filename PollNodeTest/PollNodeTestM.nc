@@ -1,7 +1,8 @@
 module PollNodeTestM
 {
 	provides interface StdControl;
-	uses {
+	  uses
+	{
 		interface SplitControl as MACControl;
 		interface PollNodeComm;
 		interface Leds;
@@ -50,7 +51,8 @@ implementation
 	command result_t StdControl.start()
 	{
 		atomic n = 0;
-		trace(DBG_USR1, "PollNodeTestM StdControl.start() called\r\n");
+		trace(DBG_USR1,
+		      "PollNodeTestM StdControl.start() called\r\n");
 		call MACControl.init();
 		return SUCCESS;
 	}
@@ -68,11 +70,12 @@ implementation
 	{
 		/* Set the payload */
 		atomic {
-			*((uint32_t *)pkt.data) = n;
+			*((uint32_t *) pkt.data) = n;
 		}
 		atomic {
 			if (acked == 0)
-				trace(DBG_USR1, "last packed was not acked!\r\n");
+				trace(DBG_USR1,
+				      "last packed was not acked!\r\n");
 		}
 		atomic acked = 0;
 		call Leds.redToggle();
@@ -88,18 +91,17 @@ implementation
 	{
 		call Leds.greenToggle();
 		atomic acked = 1;
-		atomic ++n;
+		atomic++ n;
 		return SUCCESS;
 	}
- 
+
 	event result_t PollNodeComm.dataTxFailed()
 	{
 		trace(DBG_USR1, "PollNodeComm.dataTxFailed() called\r\n");
 		return SUCCESS;
 	}
 
-	
 
 
-}  // end of implementation
 
+}				// end of implementation

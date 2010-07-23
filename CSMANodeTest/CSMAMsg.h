@@ -32,6 +32,7 @@
 #define CSMA_BEACON 1
 #define CSMA_DATA   2
 #define CSMA_BROADCAST_ADDRESS  0xff
+#define CSMA_NO_ACK 1
 
 typedef struct {
 	PhyHeader hdr;   // include lower-layer header first

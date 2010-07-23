@@ -30,7 +30,13 @@
  * Total number of nodes in cluster. The nodes are supposed to have a local
  * address in the range [0..NUM_NODES-1].
  */
-#define NUM_NODES 7
+#define NUM_NODES 9
+
+
+/*
+ * Test time in ms (300000ms = 300s = 5min)
+ */
+#define TEST_TIME 300000
 
 /*
  * Poll nodes in random order? If set to 0, nodes will be polled in strictly

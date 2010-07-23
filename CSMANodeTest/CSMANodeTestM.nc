@@ -8,14 +8,10 @@ module CSMANodeTestM
 		interface PhyComm;
 		interface BackoffControl;
 		interface Leds;
-		interface Timer as TimeoutTimer;
-		interface Timer as SampleTimer;
 		interface PrecisionTimer as PTimer;
 		interface PrecisionTimer as PSampleTimer;
-		interface PrecisionTimer as PTestTimer;
 		interface StdControl as PTimerControl;
 		interface Random;
-		//interface PrecisionTimer as TimeoutTimer;
 	}
 }
 
@@ -85,7 +81,6 @@ implementation
 		uint16_t id;
 		uint32_t loc_sample_interval;
 
-		//call TimeoutTimer.stop();
 		/* Unset the Timeout as we've received the packet already */
 		atomic loc_sample_interval = sample_interval;
 
@@ -108,35 +103,13 @@ implementation
 	}
 
 	/*
-	 * The precision timeout timer has fired, so call the timeout handler.
+	 * unused...
 	 */
 	async event result_t PTimer.alarmFired(uint32_t val)
 	{
 		return SUCCESS;
 	}
 
-	/*
-	 * This is the timeout handler. It basically cancels the current request
-	 * and goes on with the next one as described previously.
-	 */
-	event result_t TimeoutTimer.fired()
-	{
-		return SUCCESS;
-	}
-
-	/*
-	 * The sample timer fired, so a new sampling period has started.
-	 * Send the sample start packet.
-	 */
-	event result_t SampleTimer.fired()
-	{
-		return SUCCESS;
-	}
-
-	async event result_t PTestTimer.alarmFired(uint32_t val)
-	{
-		return SUCCESS;
-	}
 
 	CSMAPkt appPkt;
 

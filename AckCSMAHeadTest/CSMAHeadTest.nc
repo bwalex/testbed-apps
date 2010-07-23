@@ -11,8 +11,6 @@ implementation
    CSMAHeadTestM.BackoffControl -> PhyRadio2;
    CSMAHeadTestM.SignalStrength -> PhyRadio2;
    CSMAHeadTestM.CarrierSense -> PhyRadio2;
-   CSMAHeadTestM.TimeoutTimer -> TimerC.Timer[unique("Timer")];
-   CSMAHeadTestM.SampleTimer -> TimerC.Timer[unique("Timer")];
    CSMAHeadTestM.PTimer -> PrecisionTimerC.PrecisionTimer[1];
    CSMAHeadTestM.PSampleTimer -> PrecisionTimerC.PrecisionTimer[2];
    CSMAHeadTestM.PTestTimer -> PrecisionTimerC.PrecisionTimer[3];

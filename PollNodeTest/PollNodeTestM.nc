@@ -6,7 +6,6 @@ module PollNodeTestM
 		interface SplitControl as MACControl;
 		interface PollNodeComm;
 		interface Leds;
-		interface Timer as TimeoutTimer;
 	}
 }
 
@@ -17,11 +16,6 @@ implementation
 	AppPkt pkt;
 	uint32_t n;
 	uint8_t acked;
-
-	event result_t TimeoutTimer.fired()
-	{
-		return SUCCESS;
-	}
 
 	command result_t StdControl.init()
 	{

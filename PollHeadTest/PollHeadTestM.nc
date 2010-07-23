@@ -6,14 +6,11 @@ module PollHeadTestM
 		interface SplitControl as MACControl;
 		interface PollHeadComm;
 		interface Leds;
-		interface Timer as TimeoutTimer;
-		interface Timer as SampleTimer;
 		interface PrecisionTimer as PTimer;
 		interface PrecisionTimer as PSampleTimer;
 		interface PrecisionTimer as PTestTimer;
 		interface StdControl as PTimerControl;
 		interface Random;
-		//interface PrecisionTimer as TimeoutTimer;
 	}
 }
 
@@ -56,23 +53,15 @@ implementation
 	task void pollnodes()
 	{
 		//trace(DBG_USR1, "Requesting data from node %d, %d\r\n", node_id, call Random.rand() % nodes_left);
-		//call TimeoutTimer.start(TIMER_ONE_SHOT, TIMEOUT_MS);
 		atomic++ data_reqs;
 		atomic nodes[node_id].status = STATUS_OK;
 		/* Get current timestamp to find the RTT */
 		atomic node_req_ts = call PTimer.getTime32();
+		/* set the timeout alarm */
 		call PTimer.setAlarm(node_req_ts +
 				     (uint32_t) TIMEOUT_JIFFIES);
-		/* Set the timeout alarm */
-		//call PTimer.setAlarm(node_req_ts + (uint32_t)TIMEOUT_JIFFIES);
 		/* Request the data from node_id */
-		if ((call PollHeadComm.
-		     requestData(node_id, &pkt, sizeof(pkt))) == FAIL) {
-		} else {
-			atomic {
-				//node_req_ts = call PTimer.getTime32();
-				//call PTimer.setAlarm(node_req_ts + (uint32_t)TIMEOUT_JIFFIES);
-			}
+		if ((call PollHeadComm.requestData(node_id, &pkt, sizeof(pkt))) == FAIL) {
 		}
 	}
 
@@ -186,7 +175,6 @@ implementation
 			//trace(DBG_USR1, "It's likely that the sample period expired, node %d sent OOB message (node_id=%d)\r\n", id, node_id);
 			return SUCCESS;
 		}
-		//call TimeoutTimer.stop();
 		/* Unset the Timeout as we've received the packet already */
 		call PTimer.clearAlarm();
 
@@ -225,7 +213,6 @@ implementation
 			trace(DBG_USR1, "3,%d,%d,%f,%f,%d,%d\r\n", id,
 			      *((uint32_t *) pPkt->data), rtt_ms, std_ms,
 			      nodes[id].retries, nodes[id].fail_count);
-			//trace(DBG_USR1, "received data (from node %d) = %d,%d - RTT: %f ms (jiffies: %d), S2RT: %f ms\r\n", id, pPkt->data[0], pPkt->data[1], rtt_ms, node_ready_ts - node_req_ts, std_ms);
 			call Leds.greenToggle();
 			nodes[id].retries = 0;
 		}
@@ -238,26 +225,16 @@ implementation
 		 */
 		//trace(DBG_USR1, "calling poll_next_node\r\n");
 		poll_next_node();
-#if 0
-		atomic {
-			nodes[node_id].retries = 0;
-			if (node_id == (NUM_NODES - 1)) {
-				node_id = 0;
-			} else {
-				node_id++;
-				//trace(DBG_USR1, "special marker (1) for pollnodes(), node_id = %d\r\n", node_id);
-				post pollnodes();
-			}
-		}
-#endif
 		return SUCCESS;
 	}
 
 	/*
-	 * The precision timeout timer has fired, so call the timeout handler.
+	 * This is the timeout handler. It basically cancels the current request
+	 * and goes on with the next one as described previously.
 	 */
 	async event result_t PTimer.alarmFired(uint32_t val)
 	{
+		uint32_t cur_ts;
 		int ret = 0;
 		atomic {
 			if (new_sample) {
@@ -271,18 +248,6 @@ implementation
 			return SUCCESS;
 			/* NOTREACHED */
 		}
-
-		signal TimeoutTimer.fired();
-		return SUCCESS;
-	}
-
-	/*
-	 * This is the timeout handler. It basically cancels the current request
-	 * and goes on with the next one as described previously.
-	 */
-	event result_t TimeoutTimer.fired()
-	{
-		uint32_t cur_ts;
 
 		atomic {
 			cur_ts = call PTimer.getTime32();
@@ -303,42 +268,8 @@ implementation
 				}
 			} else {
 				poll_next_node();
-#if 0
-				nodes[node_id].retries = 0;
-				if (node_id == (NUM_NODES - 1)) {
-					node_id = 0;
-				} else {
-					node_id++;
-					//trace(DBG_USR1, "special marker (2) for pollnodes(), node_id = %d\r\n", node_id);
-					post pollnodes();
-				}
-#endif
 			}
 		}
-		return SUCCESS;
-	}
-
-	/*
-	 * The sample timer fired, so a new sampling period has started.
-	 * Send the sample start packet.
-	 */
-	event result_t SampleTimer.fired()
-	{
-#if 0
-		//trace(DBG_USR1, "SampleTimer fired!!!!!!!!!!!!!!!!!!!\r\n");
-		//call TimeoutTimer.stop();
-		call PTimer.clearAlarm();
-		call Leds.redToggle();
-		atomic {
-			node_id = 0;
-		}
-		//trace(DBG_USR1, "special marker (3) for pollnodes(), node_id = %d\r\n", node_id);
-		//call PollHeadComm.sendSampleStart();
-		signal PollHeadComm.sendSampleStartDone();
-		//atomic sample_start_ts = call PTimer.getTime32();
-		//post pollnodes();
-		return SUCCESS;
-#endif
 		return SUCCESS;
 	}
 
@@ -395,7 +326,7 @@ implementation
 		atomic sample_start_ts = call PTimer.getTime32();
 		nodes[node_id].retries = 0;
 		atomic new_sample = 1;
-		call PTimer.setAlarm(sample_start_ts + 20000);	/* approx 3 ms */
+		call PTimer.setAlarm(sample_start_ts + 20000);	/* approx 3 ms, avoids major problems */
 		//post pollnodes();
 		return SUCCESS;
 	}
@@ -437,7 +368,6 @@ implementation
 		}
 		/* XXX: do actual work starting here */
 		atomic node_id = 0;
-		//call SampleTimer.start(TIMER_REPEAT, SAMPLE_INTERVAL_MS);
 		call PollHeadComm.setSleepInterval(SLEEP_INTERVAL_MS *
 						   JIFFIES_PER_MS);
 		post setSampleTimer();

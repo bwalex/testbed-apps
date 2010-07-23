@@ -7,7 +7,6 @@ implementation
    Main.StdControl -> PollNodeTestM;
    PollNodeTestM.MACControl -> PollNode;
    PollNodeTestM.PollNodeComm -> PollNode;
-   PollNodeTestM.TimeoutTimer -> SingleTimer;
    PollNodeTestM.Leds -> LedsC;
 }
 

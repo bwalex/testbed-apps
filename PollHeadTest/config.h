@@ -36,7 +36,7 @@
 /*
  * Test time in ms (300000ms = 300s = 5min)
  */
-#define TEST_TIME 300000
+#define TEST_TIME 100000
 
 /*
  * Poll nodes in random order? If set to 0, nodes will be polled in strictly
